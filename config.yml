@@ -1,0 +1,10 @@
+serial-port:
+  port: /dev/tty.usbserial-10
+  baud: 9600
+mqtt:
+  host: hestia.lan
+  port: 1883
+  topic: boatpi/relay/ais-send
+logging:
+  # filename: logfile.txt
+  level: Debug
