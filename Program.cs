@@ -28,7 +28,14 @@ public static class Program {
         Configuration? config = ParseArguments(args);
         if (null == config)
         {
-            config = ConfigurationFromUser();
+            try 
+            {
+                config = await ConfigurationFromUserAsync();
+            }
+            catch 
+            {
+                return EC_ERROR;
+            }
         }
 
         if (config.Logging != null)
@@ -59,7 +66,7 @@ public static class Program {
         else
         {
             // launch CLI based interface
-            return MainUserLoop(config, relay);
+            return await MainUserLoopAsync(config, relay);
         }
     }
 
@@ -117,11 +124,11 @@ public static class Program {
         return null;
     }
 
-    static Configuration ConfigurationFromUser() 
+    static async Task<Configuration> ConfigurationFromUserAsync() 
     {
         var config = new Configuration
         {
-            SerialPort = new SerialPortConfig() { Port = SelectSerialPort(), Baud = 9600},
+            SerialPort = new SerialPortConfig() { Port = await SelectSerialPortAsync(), Baud = 9600},
             Logging = new LoggingConfig() { Level = Logger.LogLevel.Warn }
         };
         return config;
@@ -143,14 +150,14 @@ public static class Program {
         return port;
     }
 
-    static int MainUserLoop(Configuration config, SerialPortRelayControl relay) 
+    static async Task<int> MainUserLoopAsync(Configuration config, SerialPortRelayControl relay) 
     {
         bool doLoop = true;
         var commands = Enum.GetNames(typeof(CommandInput));
 
         while(doLoop) 
         {
-            string? input = SelectStringFromList(commands, "Command");
+            string? input = await SelectStringFromListAsync(commands, "Command");
             if (null == input) 
             {
                 logger.WriteLine(Logger.LogLevel.Warn, "Invalid input. Try again, using the full command or command number.");
@@ -181,7 +188,7 @@ public static class Program {
         return EC_OK;
     }
 
-    static string? SelectStringFromList(string[] list, string prompt)
+    static async Task<string?> SelectStringFromListAsync(string[] list, string prompt)
     {
         int i = 1;
         foreach(var item in list) 
@@ -190,14 +197,13 @@ public static class Program {
         }
 
         Console.Write($"{prompt}: ");
-        var input = Console.ReadLine();
+        var input = await ReadLineAsync(appCancelTokenSource.Token);
         if (null == input) 
         {
-            throw new EndOfStreamException();
+            return null;
         }
 
-        int selectedIndex;
-        if (int.TryParse(input, out selectedIndex) && selectedIndex > 0 && selectedIndex <= list.Length) 
+        if (int.TryParse(input, out int selectedIndex) && selectedIndex > 0 && selectedIndex <= list.Length)
         {
             // Accept the index as input
             return list[selectedIndex - 1];
@@ -206,7 +212,8 @@ public static class Program {
         {
             // Accept the string value as input
             var query = (from p in list where p.ToLower() == input.ToLower() select p).FirstOrDefault();
-            if (null != query) {
+            if (null != query)
+            {
                 return query;
             }
         }
@@ -214,9 +221,34 @@ public static class Program {
         return null;
     }
 
-    static string SelectSerialPort() {
+    private static Task<string?>? readTask = null;
+
+    private static async Task<string?> ReadLineAsync(CancellationToken cancellationToken = default)
+    {
+        readTask ??= Task.Run(
+            () => {
+                try {
+                return Console.ReadLine();
+                } catch { return null; }
+            }
+        );
+        await Task.WhenAny(readTask, Task.Delay(-1, cancellationToken));
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            readTask = null;
+            return null;
+        }
+
+        string? result = await readTask;
+        readTask = null;
+
+        return result;
+    }
+
+    static async Task<string> SelectSerialPortAsync() {
         var ports = SerialPort.GetPortNames();
-        string? portName = SelectStringFromList(ports, "Select a serial port");
+        string? portName = await SelectStringFromListAsync(ports, "Select a serial port");
         if (null != portName)
             return portName;
 
