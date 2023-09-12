@@ -1,10 +1,20 @@
-serial-port:
+serial_port:
   port: /dev/tty.usbserial-10
   baud: 9600
 mqtt:
   host: hestia.lan
   port: 1883
-  topic: boatpi/relay/ais-send
+  topic: boatpi/relay/ais-transmission
+  keep_alive_seconds: 30
+  reconnect_timeout: 60
+  connection_timeout: 10
+  initial_connection_attempts: 10
+  home_assistant:
+    discovery: true
+    name: "Transmit AIS position"
+    guid: switch.boat_ais_transmission6ad32245
+    entity_id: boat_ais_transmission
+    discovery_prefix: homeassistant
 logging:
   # filename: logfile.txt
-  level: Debug
+  level: Info

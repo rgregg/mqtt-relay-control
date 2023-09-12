@@ -13,6 +13,8 @@ public class Logger
 
     private StreamWriter outputWriter;
 
+    private readonly string prefixText = "";
+
     public Logger() : this(LogLevel.Info)
     {
 
@@ -33,6 +35,13 @@ public class Logger
 
     }
 
+    public Logger(Logger parent, string prefixText)
+    {
+        this.prefixText = prefixText;
+        this.outputWriter = parent.outputWriter;
+        this.Level = parent.Level;
+    }
+
     public void Configure(LoggingConfig config)
     {
         if (config.Level.HasValue) {
@@ -50,7 +59,7 @@ public class Logger
     {
         if (this.Level >= level) 
         {
-            outputWriter.WriteLine(line);
+            outputWriter.WriteLine(prefixText + line);
             outputWriter.Flush();
         }
     }

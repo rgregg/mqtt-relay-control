@@ -19,11 +19,14 @@ public static class Program {
     private static Logger logger = new Logger(Logger.LogLevel.Debug);
     private static bool sigIntReceived = false;
     private static CancellationTokenSource appCancelTokenSource = new CancellationTokenSource();
+    private static UserSettings? settings;
 
     static async Task<int> Main (string[] args)
     {
         var tcs = new TaskCompletionSource();
         ConfigureExitHandeling(tcs);
+
+        
 
         Configuration? config = ParseArguments(args);
         if (null == config)
@@ -42,14 +45,16 @@ public static class Program {
         {
             logger.Configure(config.Logging);
         }
+        settings = new UserSettings(new Logger(logger, "SETTINGS: "));
+        await settings.LoadAsync();
 
-        var relay = new SerialPortRelayControl(GetSerialPort(config), logger);
+        var relay = new SerialPortRelayControl(GetSerialPort(config), new Logger(logger, "RELAY: "), settings);
 
         if (null != config.Mqtt)
         {
             logger.WriteLine(Logger.LogLevel.Info, "Using MQTT broker. Starting client.");
             // launch the MQTT interface
-            MqttBroker broker = new MqttBroker(logger, config.Mqtt, relay, appCancelTokenSource.Token);
+            MqttBroker broker = new MqttBroker(new Logger(logger, "MQTT: "), config.Mqtt, relay, appCancelTokenSource.Token);
             if (await broker.ConnectAsync())
             {
                 // Control flow stops on the next line until we receive a command to exit the process
@@ -97,30 +102,46 @@ public static class Program {
 
     static Configuration? ParseArguments(string[] args)
     {
-        for(int i = 0; i<args.Length; i++)
+        if (args.Length == 1)
         {
-            string arg = args[i];
-            switch(arg)
+            var configFile = args[0];
+            logger.WriteLine(Logger.LogLevel.Info, $"Using configuration file: {configFile}");
+            try 
             {
-                case "-c":  // configuration file
-                    if (i+1<args.Length) 
-                    {
-                        string configFile = args[++i];
-                        logger.WriteLine(Logger.LogLevel.Info, $"Using configuration file: {configFile}");
-                        try 
-                        {
-                            return Configuration.FromYaml(configFile);
-                        }
-                        catch (Exception ex) 
-                        {
-                            logger.WriteLine(Logger.LogLevel.Error, "Error reading configuration: " + ex.ToString());
-                            throw;
-                        }
-                    }
-                    i++;
-                    break;
+                return Configuration.FromYaml(configFile);
+            }
+            catch (Exception ex) 
+            {
+                logger.WriteLine(Logger.LogLevel.Error, "Error reading configuration: " + ex.ToString());
+                throw;
             }
         }
+
+
+        // for(int i = 0; i<args.Length; i++)
+        // {
+        //     string arg = args[i];
+        //     switch(arg)
+        //     {
+        //         case "-c":  // configuration file
+        //             if (i+1<args.Length) 
+        //             {
+        //                 string configFile = args[++i];
+        //                 logger.WriteLine(Logger.LogLevel.Info, $"Using configuration file: {configFile}");
+        //                 try 
+        //                 {
+        //                     return Configuration.FromYaml(configFile);
+        //                 }
+        //                 catch (Exception ex) 
+        //                 {
+        //                     logger.WriteLine(Logger.LogLevel.Error, "Error reading configuration: " + ex.ToString());
+        //                     throw;
+        //                 }
+        //             }
+        //             i++;
+        //             break;
+        //     }
+        // }
         return null;
     }
 
