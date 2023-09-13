@@ -89,9 +89,14 @@ public class MqttBroker
         mqttClient = mqttFactory.CreateMqttClient();
         mqttClient.ApplicationMessageReceivedAsync += ApplicationMessageReceivedAsync;
 
-        var clientOptions = new MqttClientOptionsBuilder()
-                                .WithTcpServer(config.Host, config.Port)
-                                .Build();
+        var clientOptionBuilder = new MqttClientOptionsBuilder()
+                                .WithTcpServer(config.Host, config.Port);
+        if (!string.IsNullOrEmpty(config.Username) || !string.IsNullOrEmpty(config.Password))
+        {
+            clientOptionBuilder = clientOptionBuilder.WithCredentials(config.Username ?? "", config.Password ?? "");
+        }
+
+        var clientOptions = clientOptionBuilder.Build();
         try 
         {
             using (var timeoutToken = new CancellationTokenSource(TimeSpan.FromSeconds(connectionTimeoutSeconds)))

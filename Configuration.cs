@@ -57,6 +57,13 @@ public class MqttConfig
 
     [YamlMember(Alias = "initial_connection_attempts")]
     public int? InitialConnectionAttempts {get;set;}
+
+    [YamlMember(Alias = "username")]
+    public string? Username {get;set;}
+    
+    [YamlMember(Alias = "password")]
+    public string? Password {get;set;}
+
 }
 
 public class HomeAssistantConfig
