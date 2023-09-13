@@ -1,4 +1,5 @@
 using System.Text.Json;
+
 public class UserSettings
 {
     private Dictionary<string, string> userSettings = new Dictionary<string, string>();
@@ -26,12 +27,12 @@ public class UserSettings
 
                 try
                 {
-                Dictionary<string, string>? parsedData = JsonSerializer.Deserialize<Dictionary<string, string>>(data);
-                if (null != parsedData)
-                {
-                    userSettings = parsedData;
-                    hasDataChanged = false;
-                }
+                    Dictionary<string, string>? parsedData = JsonSerializer.Deserialize<Dictionary<string, string>>(data);
+                    if (null != parsedData)
+                    {
+                        userSettings = parsedData;
+                        hasDataChanged = false;
+                    }
                 } catch (Exception ex)
                 {
                     logger.WriteLine(Logger.LogLevel.Warn, $"Unable to parse user settings file: {ex.Message}.");
