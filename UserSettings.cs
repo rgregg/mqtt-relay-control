@@ -59,7 +59,7 @@ public class UserSettings
         try
         {
             var directory = Path.GetDirectoryName(filePath);
-            if (!Directory.Exists(directory))
+            if (null != directory && !Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
             }

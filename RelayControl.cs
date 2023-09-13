@@ -18,7 +18,7 @@ public class SerialPortRelayControl
 
     public RelayState CurrentState {get; private set;}
 
-    public event EventHandler RelayStateChanged;
+    public event EventHandler? RelayStateChanged;
 
     public SerialPortRelayControl(SerialPort port, Logger logger, UserSettings settings)
     {

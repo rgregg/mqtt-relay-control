@@ -60,21 +60,23 @@ public class MqttBroker
             string messagePayload = Encoding.UTF8.GetString(bytes);
             logger.WriteLine(Logger.LogLevel.Debug, $"{messagePayload}");
             
-            try
-            {
-                if (messagePayload.Equals(PAYLOAD_ON, StringComparison.OrdinalIgnoreCase))
+            await Task.Run(() => {
+                try
                 {
-                    relay.OpenRelay();
+                    if (messagePayload.Equals(PAYLOAD_ON, StringComparison.OrdinalIgnoreCase))
+                    {
+                        relay.OpenRelay();
+                    }
+                    else if (messagePayload.Equals(PAYLOAD_OFF, StringComparison.OrdinalIgnoreCase))
+                    {
+                        relay.CloseRelay();
+                    }
                 }
-                else if (messagePayload.Equals(PAYLOAD_OFF, StringComparison.OrdinalIgnoreCase))
+                catch (Exception ex)
                 {
-                    relay.CloseRelay();
+                    logger.WriteLine(Logger.LogLevel.Warn, $"Unable to change relay state: {ex.Message}");
                 }
-            }
-            catch (Exception ex)
-            {
-                logger.WriteLine(Logger.LogLevel.Warn, $"Unable to change relay state: {ex.Message}");
-            }
+            });
         }
     }
 
