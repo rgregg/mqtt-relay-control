@@ -54,7 +54,7 @@ public static class Program {
         {
             logger.WriteLine(Logger.LogLevel.Info, "Using MQTT broker. Starting client.");
             // launch the MQTT interface
-            MqttBroker broker = new MqttBroker(new Logger(logger, "MQTT: "), config.Mqtt, relay, appCancelTokenSource.Token);
+            SerialRelayMqttBroker broker = new SerialRelayMqttBroker(new Logger(logger, "MQTT: "), config.Mqtt, relay, appCancelTokenSource.Token);
             if (await broker.ConnectAsync())
             {
                 // Control flow stops on the next line until we receive a command to exit the process

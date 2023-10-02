@@ -6,36 +6,31 @@ using MQTTnet.Client;
 
 public class MqttBroker
 {
-    private readonly Logger logger;
-    private readonly SerialPortRelayControl relay;
-    private readonly MqttConfig config;
+    protected readonly Logger logger;
+    protected readonly MqttConfig config;
     private readonly MqttFactory mqttFactory;
     private readonly CancellationToken appCancelToken;
     private IMqttClient? mqttClient;
     private Timer? keepAliveTimer;
-    private int keepAliveTimeoutMilliseconds = 5 * 1000;
-    private int reconnectTimeoutMilliseconds = 60 * 1000;
-    private int connectionTimeoutSeconds = 10;
-    private int disconncetTimeoutSeconds = 2;
-    private int initialConnectionAttempts = 10;
-    private const string PAYLOAD_ON = "on";
-    private const string PAYLOAD_OFF = "off";
-    private const string PAYLOAD_AVAILABLE = "available";
-    private const string PAYLOAD_OFFLINE = "offline";
+    protected int keepAliveTimeoutMilliseconds = 5 * 1000;
+    protected int reconnectTimeoutMilliseconds = 60 * 1000;
+    protected int connectionTimeoutSeconds = 10;
+    protected int disconncetTimeoutSeconds = 2;
+    protected int initialConnectionAttempts = 10;
+    protected const string PAYLOAD_ON = "on";
+    protected const string PAYLOAD_OFF = "off";
+    protected const string PAYLOAD_AVAILABLE = "available";
+    protected const string PAYLOAD_OFFLINE = "offline";
 
 
 
-    public MqttBroker(Logger logger, MqttConfig config, SerialPortRelayControl relay, CancellationToken appCancelToken)
+    public MqttBroker(Logger logger, MqttConfig config, CancellationToken appCancelToken)
     {
         this.logger = logger;
-        this.relay = relay;
         this.config = config;
         this.mqttFactory = new MqttFactory();
         this.appCancelToken = appCancelToken;
-        relay.RelayStateChanged += new EventHandler(async (obj, args)=> {
-            await UpdateHomeAssistantState(relay.CurrentState);
-        });
-
+        
         if (config.KeepAliveSeconds.HasValue)
             keepAliveTimeoutMilliseconds = config.KeepAliveSeconds.Value * 1000;
         if (config.ReconnectTimeout.HasValue)
@@ -46,38 +41,14 @@ public class MqttBroker
             initialConnectionAttempts = config.InitialConnectionAttempts.Value;
     }
 
-    private async Task ApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs e) 
+    protected virtual async Task ApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs e) 
     {
         await ProcessMessagePayloadAsync(e.ApplicationMessage);
     }
 
-    private async Task ProcessMessagePayloadAsync(MqttApplicationMessage message)
+    protected virtual async Task ProcessMessagePayloadAsync(MqttApplicationMessage message)
     {
-        logger.WriteLine(Logger.LogLevel.Info, $"Received application message: {message.Topic}");
         
-        if (null != message.PayloadSegment.Array) {
-            byte[] bytes = message.PayloadSegment.Array;
-            string messagePayload = Encoding.UTF8.GetString(bytes);
-            logger.WriteLine(Logger.LogLevel.Debug, $"{messagePayload}");
-            
-            await Task.Run(() => {
-                try
-                {
-                    if (messagePayload.Equals(PAYLOAD_ON, StringComparison.OrdinalIgnoreCase))
-                    {
-                        relay.OpenRelay();
-                    }
-                    else if (messagePayload.Equals(PAYLOAD_OFF, StringComparison.OrdinalIgnoreCase))
-                    {
-                        relay.CloseRelay();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.WriteLine(Logger.LogLevel.Warn, $"Unable to change relay state: {ex.Message}");
-                }
-            });
-        }
     }
 
     public async Task<bool> ConnectAsync() 
@@ -85,7 +56,7 @@ public class MqttBroker
         return await ConnectAsync(initialConnectionAttempts);
     }
 
-    private async Task<bool> ConnectAsync(int remainingConnectionAttempts)
+    protected async Task<bool> ConnectAsync(int remainingConnectionAttempts)
     {
         logger.WriteLine(Logger.LogLevel.Info, $"Connecting to MQTT server: mqtt://{config.Host}:{config.Port}.");
         mqttClient = mqttFactory.CreateMqttClient();
@@ -130,12 +101,12 @@ public class MqttBroker
         }
     }
 
-    private bool IsHomeAssistantEnabled
+    protected bool IsHomeAssistantEnabled
     {
         get { return config.HomeAssistant != null; }
     }
 
-    private string StateTopic 
+    protected string StateTopic 
     {
         get 
         { 
@@ -146,7 +117,7 @@ public class MqttBroker
         }
     }
 
-    private string CommandTopic
+    protected string CommandTopic
     {
         get 
         {
@@ -154,7 +125,7 @@ public class MqttBroker
         }
     }
 
-    private string AvailabilityTopic
+    protected string AvailabilityTopic
     {
         get
         {
@@ -162,7 +133,7 @@ public class MqttBroker
         }
     }
 
-    private async Task PostConnectEventsAsync(bool firstConnect)
+    protected async Task PostConnectEventsAsync(bool firstConnect)
     {
         if (mqttClient == null) { return; }
 
@@ -194,12 +165,17 @@ public class MqttBroker
         if (config.HomeAssistant != null)
         {
             await UpdateHomeAssistantDiscoveryAsync(config.HomeAssistant);
-            await UpdateHomeAssistantState(relay.CurrentState);
-
         }
+        await UpdateDefaultStateAsync();
     }
 
-    private async Task UpdateHomeAssistantAvailabilityAsync(bool isAvailable)
+    protected virtual async Task UpdateDefaultStateAsync()
+    {
+
+    }
+
+
+    protected async Task UpdateHomeAssistantAvailabilityAsync(bool isAvailable)
     {
         if (!IsHomeAssistantEnabled) return;
 
@@ -216,36 +192,12 @@ public class MqttBroker
         }
     }
 
-    private async Task UpdateHomeAssistantState(SerialPortRelayControl.RelayState state)
+    protected async Task PublishStringAsync(string topic, string payload, MQTTnet.Protocol.MqttQualityOfServiceLevel qualityOfService, bool persist, CancellationToken cancellationToken)
     {
-        if (!IsHomeAssistantEnabled) return;
-
-        string payload;
-        switch(state)
-        {
-            case SerialPortRelayControl.RelayState.Open:
-                payload = PAYLOAD_ON;
-                break;
-            case SerialPortRelayControl.RelayState.Closed:
-                payload = PAYLOAD_OFF;
-                break;
-            default:
-                payload = "unknown";
-                break;
-        }
-        logger.WriteLine(Logger.LogLevel.Debug, $"Setting state to {payload}");
-
-        try
-        {
-            await mqttClient.PublishStringAsync(StateTopic, payload, 0, true, CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            logger.WriteLine(Logger.LogLevel.Error, $"Unable to publish state information: {ex.Message}");
-        }
+        await mqttClient.PublishStringAsync(topic, payload, qualityOfService, persist, cancellationToken);
     }
 
-    private async Task UpdateHomeAssistantDiscoveryAsync(HomeAssistantConfig config)
+    protected async Task UpdateHomeAssistantDiscoveryAsync(HomeAssistantConfig config)
     {
         if (!IsHomeAssistantEnabled) return;
 
@@ -253,10 +205,7 @@ public class MqttBroker
         {
             return;
         }
-        // if (string.IsNullOrEmpty(config.UniqueID))
-        // {
-        //     throw new InvalidDataException("Home Assistant discovery required a guid to be configured.");
-        // }
+
         if (string.IsNullOrEmpty(config.EntityId))
         {
             throw new InvalidDataException("Home Assistant discovery requires the entity_id be configured.");
@@ -313,7 +262,7 @@ public class MqttBroker
         }
     }
 
-    private async Task KeepAliveTimerAsync()
+    protected async Task KeepAliveTimerAsync()
     {
         logger.WriteLine(Logger.LogLevel.Debug, "Sending keep alive ping to server");
         bool success = false;
