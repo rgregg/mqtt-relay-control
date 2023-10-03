@@ -133,8 +133,10 @@ public class MqttToSignalKConfig
 
 public class MqttMappingConfig
 {
-    [YamlMember(Alias = "type")]
-    public string? MappingType { get; set; }
+    [YamlMember(Alias = "source")]
+    public string? Source { get; set; }
+    [YamlMember(Alias = "format")]
+    public string? Format {get;set;}
 
     [YamlMember(Alias = "source_topic")]
     public string? SourceTopic { get; set; }

@@ -13,7 +13,7 @@ home_assistant:
   device_topic_prefix: "boatpi/devices"
 logging:
   # filename: logfile.txt
-  level: Info
+  level: Debug
 relay_control:
   - name: "Transmit AIS position"
     serial_port: 
@@ -25,12 +25,15 @@ relay_control:
 signalk:
   system_id: "368327460"
   mqtt_mapping:
-    - type: "zigbee-temperature"
+    - source: "zigbee2mqtt"
+      format: "temperature"
       source_topic: "zigbee2mqtt/TempSensorEngineRoom"
       dest_topic: "vessels/self/environment/inside/engineRoom"
-    - type: "zigbee-temperature"
+    - source: "zigbee2mqtt"
+      format: "temperature"
       source_topic: "zigbee2mqtt/Cabin Temperature"
       dest_topic: "vessels/self/environment/inside/mainCabin"
-    - type: "zigbee-temperature"
+    - source: "zigbee2mqtt"
+      format: "temperature"
       source_topic: "zigbee2mqtt/TempSensorCockpit"
       dest_topic: "vessels/self/environment/inside/cockpit"
