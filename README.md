@@ -108,8 +108,8 @@ signalk:
   mqtt_mapping: 
     - source: "zigbee2mqtt"   # Source of the data, always zigbee2mqtt
       format: "temperature"   # Data format / probe type, always temperature
-      source_topic: "zigbee2mqtt/TempSensorEngineRoom"  # Source topic for the data from Zigbee2MQTT
-      dest_topic: "vessels/self/environment/inside/engineRoom"  # Destination path in Signal-K
+      source_topic: "zigbee2mqtt/CabinTemperature"   # Source topic for the data from Zigbee2MQTT
+      dest_topic: "vessels/self/environment/inside/mainCabin"  # Destination path in Signal-K
 ```
 
 For Zigbee temperature probes, the service will try to map values
