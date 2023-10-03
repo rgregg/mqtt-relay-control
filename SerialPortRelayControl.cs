@@ -12,24 +12,26 @@ public class SerialPortRelayControl
     private static readonly byte[] OpenRelayCommand = { 0xA0, 0x1, 0x1, 0xA2};
     private static readonly byte[] CloseRelayCommand = { 0xA0, 0x1, 0x0, 0xA1};
 
-    public SerialPort port;
-    private Logger logger;
-    private UserSettings settings;
+    private readonly SerialPort Port;
+    private readonly Logger Logger;
+    private readonly UserSettings Settings;
+    private readonly string Identifier;
 
     public RelayState CurrentState {get; private set;}
 
     public event EventHandler? RelayStateChanged;
 
-    public SerialPortRelayControl(SerialPort port, Logger logger, UserSettings settings)
+    public SerialPortRelayControl(string identifier, SerialPort port, Logger logger, UserSettings settings)
     {
-        this.port = port;
-        this.logger = logger;
-        this.settings = settings;
+        this.Port = port;
+        this.Logger = logger;
+        this.Settings = settings;
+        this.Identifier = identifier;
     }
 
     private void ResumeLastRelayState()
     {
-        string? previousValue = settings.GetValue(LAST_RELAY_STATE);
+        string? previousValue = Settings.GetValue(Identifier + LAST_RELAY_STATE);
         if (!string.IsNullOrEmpty(previousValue))
         {
             switch (previousValue)
@@ -50,50 +52,50 @@ public class SerialPortRelayControl
 
     public void OpenRelay()
     {
-        logger.WriteLine(Logger.LogLevel.Info, "Opening relay connection");
+        Logger.WriteLine(Logger.LogLevel.Info, "Opening relay connection");
         SendBytes(OpenRelayCommand);
         this.CurrentState = RelayState.Open;
 
-        settings.SetValue(LAST_RELAY_STATE, STATE_OPEN);
-        settings.WriteAsync().Wait();
+        Settings.SetValue(Identifier + LAST_RELAY_STATE, STATE_OPEN);
+        Settings.WriteAsync().Wait();
 
         RelayStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void CloseRelay()
     {
-        logger.WriteLine(Logger.LogLevel.Info, "Closing relay connection");
+        Logger.WriteLine(Logger.LogLevel.Info, "Closing relay connection");
         SendBytes(CloseRelayCommand);
         this.CurrentState = RelayState.Closed;
 
-        settings.SetValue(LAST_RELAY_STATE, STATE_CLOSED);
-        settings.WriteAsync().Wait();
+        Settings.SetValue(Identifier + LAST_RELAY_STATE, STATE_CLOSED);
+        Settings.WriteAsync().Wait();
 
         RelayStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void SendBytes(byte[] bytes) 
     {
-        if (!port.IsOpen) 
+        if (!Port.IsOpen) 
         { 
-            logger.WriteLine(Logger.LogLevel.Info, "SerialPort is closed. Opening before writing.");
+            Logger.WriteLine(Logger.LogLevel.Info, "SerialPort is closed. Opening before writing.");
             try
             {
-                port.Open();
+                Port.Open();
             }
             catch (Exception ex)
             {
-                logger.WriteLine(Logger.LogLevel.Error, $"Unable to open serial port. {ex.Message}");
+                Logger.WriteLine(Logger.LogLevel.Error, $"Unable to open serial port. {ex.Message}");
                 return;
             }
         }
-        port.Write(bytes, 0, bytes.Length);
+        Port.Write(bytes, 0, bytes.Length);
     }
 
     public void CloseSerialPort() 
     {
-        logger.WriteLine(Logger.LogLevel.Info, "SerialPort closed.");
-        port.Close();
+        Logger.WriteLine(Logger.LogLevel.Info, "SerialPort closed.");
+        Port.Close();
     }
 
 }

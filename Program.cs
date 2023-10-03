@@ -8,14 +8,6 @@ public static class Program {
     private const int EC_OK = 0;
     private const int EC_ERROR = 2;
 
-    private enum CommandInput {
-        CloseSerialPort,
-        OpenSerialPort,
-        OpenRelay,
-        CloseRelay,
-        Quit
-    }
-
     private static Logger logger = new Logger(Logger.LogLevel.Debug);
     private static bool sigIntReceived = false;
     private static CancellationTokenSource appCancelTokenSource = new CancellationTokenSource();
@@ -23,22 +15,14 @@ public static class Program {
 
     static async Task<int> Main (string[] args)
     {
-        var tcs = new TaskCompletionSource();
-        ConfigureExitHandeling(tcs);
-
-        
+        var exitHandler = new TaskCompletionSource();
+        ConfigureExitHandeling(exitHandler);
 
         Configuration? config = ParseArguments(args);
         if (null == config)
         {
-            try 
-            {
-                config = await ConfigurationFromUserAsync();
-            }
-            catch 
-            {
-                return EC_ERROR;
-            }
+            Console.WriteLine("Must specify configuration file in the command line arguments");
+            return EC_ERROR;
         }
 
         if (config.Logging != null)
@@ -48,30 +32,40 @@ public static class Program {
         settings = new UserSettings(new Logger(logger, "SETTINGS: "));
         await settings.LoadAsync();
 
-        var relay = new SerialPortRelayControl(GetSerialPort(config), new Logger(logger, "RELAY: "), settings);
-
-        if (null != config.Mqtt)
+        if (config.Mqtt == null)
         {
-            logger.WriteLine(Logger.LogLevel.Info, "Using MQTT broker. Starting client.");
-            // launch the MQTT interface
-            SerialRelayMqttBroker broker = new SerialRelayMqttBroker(new Logger(logger, "MQTT: "), config.Mqtt, relay, appCancelTokenSource.Token);
-            if (await broker.ConnectAsync())
-            {
-                // Control flow stops on the next line until we receive a command to exit the process
-                await tcs.Task;
-                await broker.DisconnectAsync();
-                return EC_OK;
-            }
-            else
-            {
-                // Failed to connect to the server, so we abort
-                return EC_ERROR;
-            }
+            logger.WriteLine(Logger.LogLevel.Error, "Must specify MQTT configuration in the config file.");
+            return EC_ERROR;
+        }
+
+        // launch the MQTT interface
+        HomeAssistantMqttClient client = new HomeAssistantMqttClient(new Logger(logger, "MQTT: "), config.Mqtt, config.HomeAssistant, appCancelTokenSource.Token);
+        // client.UpdateDeviceState += (sender, device) => {
+        //     // Get the current state of this device and return it
+        //     SerialPortSwitch? switcher = device.Device as SerialPortSwitch;
+        //     if (switcher != null)
+        //     {
+        //         switcher.RunCommand(device.State ?? "");
+        //     }
+        // };
+        
+        // Register any configured HA devices
+        var mqttPrefix = config.HomeAssistant?.DeviceTopicPrefix ?? "devices/relaycontrol";
+        var switches = from d in config.RelayControl
+                                 select new SerialPortSwitch(d, mqttPrefix, new Logger(logger, "RELAY: "), settings);
+        client.RegisterDevices(switches);
+
+        if (await client.ConnectAsync())
+        {
+            // Control flow stops on the next line until we receive a command to exit the process
+            await exitHandler.Task;
+            await client.DisconnectAsync();
+            return EC_OK;
         }
         else
         {
-            // launch CLI based interface
-            return await MainUserLoopAsync(config, relay);
+            // Failed to connect to the server, so we abort
+            return EC_ERROR;
         }
     }
 
@@ -116,166 +110,114 @@ public static class Program {
                 throw;
             }
         }
-
-
-        // for(int i = 0; i<args.Length; i++)
-        // {
-        //     string arg = args[i];
-        //     switch(arg)
-        //     {
-        //         case "-c":  // configuration file
-        //             if (i+1<args.Length) 
-        //             {
-        //                 string configFile = args[++i];
-        //                 logger.WriteLine(Logger.LogLevel.Info, $"Using configuration file: {configFile}");
-        //                 try 
-        //                 {
-        //                     return Configuration.FromYaml(configFile);
-        //                 }
-        //                 catch (Exception ex) 
-        //                 {
-        //                     logger.WriteLine(Logger.LogLevel.Error, "Error reading configuration: " + ex.ToString());
-        //                     throw;
-        //                 }
-        //             }
-        //             i++;
-        //             break;
-        //     }
-        // }
         return null;
     }
 
-    static async Task<Configuration> ConfigurationFromUserAsync() 
-    {
-        var config = new Configuration
-        {
-            SerialPort = new SerialPortConfig() { Port = await SelectSerialPortAsync(), Baud = 9600},
-            Logging = new LoggingConfig() { Level = Logger.LogLevel.Warn }
-        };
-        return config;
-    }
+    // static async Task<int> MainUserLoopAsync(Configuration config, SerialPortRelayControl relay) 
+    // {
+    //     bool doLoop = true;
+    //     var commands = Enum.GetNames(typeof(CommandInput));
 
-    static SerialPort GetSerialPort(Configuration config) 
-    {
-        if (null == config.SerialPort || null == config.SerialPort.Port)
-        {
-            throw new Exception("No serial port specified.");
-        }
-        
-        SerialPort port = new SerialPort(config.SerialPort.Port);
-        if (config.SerialPort.Baud.HasValue) 
-        {
-            port.BaudRate = config.SerialPort.Baud.Value;
-        }
-        logger.WriteLine(Logger.LogLevel.Info, $"Using serial port {port.PortName} and baud rate {port.BaudRate}.");
-        return port;
-    }
+    //     while(doLoop) 
+    //     {
+    //         string? input = await SelectStringFromListAsync(commands, "Command");
+    //         if (null == input) 
+    //         {
+    //             logger.WriteLine(Logger.LogLevel.Warn, "Invalid input. Try again, using the full command or command number.");
+    //             continue;
+    //         }
 
-    static async Task<int> MainUserLoopAsync(Configuration config, SerialPortRelayControl relay) 
-    {
-        bool doLoop = true;
-        var commands = Enum.GetNames(typeof(CommandInput));
+    //         CommandInput command = Enum.Parse<CommandInput>(input, true);
+    //         switch(command) 
+    //         {
+    //             case CommandInput.CloseSerialPort:
+    //                 relay.CloseSerialPort();
+    //                 break;
 
-        while(doLoop) 
-        {
-            string? input = await SelectStringFromListAsync(commands, "Command");
-            if (null == input) 
-            {
-                logger.WriteLine(Logger.LogLevel.Warn, "Invalid input. Try again, using the full command or command number.");
-                continue;
-            }
+    //             case CommandInput.OpenRelay:
+    //                 relay.OpenRelay();
+    //                 break;
 
-            CommandInput command = Enum.Parse<CommandInput>(input, true);
-            switch(command) 
-            {
-                case CommandInput.CloseSerialPort:
-                    relay.CloseSerialPort();
-                    break;
+    //             case CommandInput.CloseRelay:
+    //                 relay.CloseRelay();
+    //                 break;
 
-                case CommandInput.OpenRelay:
-                    relay.OpenRelay();
-                    break;
+    //             case CommandInput.Quit:
+    //                 relay.CloseSerialPort();
+    //                 doLoop = false;
+    //                 break;
+    //         }
+    //     }
+    //     return EC_OK;
+    // }
 
-                case CommandInput.CloseRelay:
-                    relay.CloseRelay();
-                    break;
+    // static async Task<string?> SelectStringFromListAsync(string[] list, string prompt)
+    // {
+    //     int i = 1;
+    //     foreach(var item in list) 
+    //     {
+    //         Console.WriteLine($"{i++} - {item}");
+    //     }
 
-                case CommandInput.Quit:
-                    relay.CloseSerialPort();
-                    doLoop = false;
-                    break;
-            }
-        }
-        return EC_OK;
-    }
+    //     Console.Write($"{prompt}: ");
+    //     var input = await ReadLineAsync(appCancelTokenSource.Token);
+    //     if (null == input) 
+    //     {
+    //         return null;
+    //     }
 
-    static async Task<string?> SelectStringFromListAsync(string[] list, string prompt)
-    {
-        int i = 1;
-        foreach(var item in list) 
-        {
-            Console.WriteLine($"{i++} - {item}");
-        }
+    //     if (int.TryParse(input, out int selectedIndex) && selectedIndex > 0 && selectedIndex <= list.Length)
+    //     {
+    //         // Accept the index as input
+    //         return list[selectedIndex - 1];
+    //     }
+    //     else
+    //     {
+    //         // Accept the string value as input
+    //         var query = (from p in list where p.ToLower() == input.ToLower() select p).FirstOrDefault();
+    //         if (null != query)
+    //         {
+    //             return query;
+    //         }
+    //     }
 
-        Console.Write($"{prompt}: ");
-        var input = await ReadLineAsync(appCancelTokenSource.Token);
-        if (null == input) 
-        {
-            return null;
-        }
+    //     return null;
+    // }
 
-        if (int.TryParse(input, out int selectedIndex) && selectedIndex > 0 && selectedIndex <= list.Length)
-        {
-            // Accept the index as input
-            return list[selectedIndex - 1];
-        }
-        else
-        {
-            // Accept the string value as input
-            var query = (from p in list where p.ToLower() == input.ToLower() select p).FirstOrDefault();
-            if (null != query)
-            {
-                return query;
-            }
-        }
+    // private static Task<string?>? readTask = null;
 
-        return null;
-    }
+    // private static async Task<string?> ReadLineAsync(CancellationToken cancellationToken = default)
+    // {
+    //     readTask ??= Task.Run(
+    //         () => {
+    //             try {
+    //             return Console.ReadLine();
+    //             } catch { return null; }
+    //         }
+    //     );
+    //     await Task.WhenAny(readTask, Task.Delay(-1, cancellationToken));
 
-    private static Task<string?>? readTask = null;
+    //     if (cancellationToken.IsCancellationRequested)
+    //     {
+    //         readTask = null;
+    //         return null;
+    //     }
 
-    private static async Task<string?> ReadLineAsync(CancellationToken cancellationToken = default)
-    {
-        readTask ??= Task.Run(
-            () => {
-                try {
-                return Console.ReadLine();
-                } catch { return null; }
-            }
-        );
-        await Task.WhenAny(readTask, Task.Delay(-1, cancellationToken));
+    //     string? result = await readTask;
+    //     readTask = null;
 
-        if (cancellationToken.IsCancellationRequested)
-        {
-            readTask = null;
-            return null;
-        }
+    //     return result;
+    // }
 
-        string? result = await readTask;
-        readTask = null;
+    // static async Task<string> SelectSerialPortAsync() {
+    //     var ports = SerialPort.GetPortNames();
+    //     string? portName = await SelectStringFromListAsync(ports, "Select a serial port");
+    //     if (null != portName)
+    //         return portName;
 
-        return result;
-    }
-
-    static async Task<string> SelectSerialPortAsync() {
-        var ports = SerialPort.GetPortNames();
-        string? portName = await SelectStringFromListAsync(ports, "Select a serial port");
-        if (null != portName)
-            return portName;
-
-        Console.WriteLine("Invalid selection.");
-        throw new IndexOutOfRangeException("Invalid input. No port was selected.");
-    }
+    //     Console.WriteLine("Invalid selection.");
+    //     throw new IndexOutOfRangeException("Invalid input. No port was selected.");
+    // }
 }
 
 

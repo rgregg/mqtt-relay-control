@@ -1,20 +1,36 @@
-serial_port:
-  port: /dev/tty.usbserial-10
-  baud: 9600
 mqtt:
   host: hestia.lan
   port: 1883
-  topic: boatpi/relay/ais-transmission
   keep_alive_seconds: 30
   reconnect_timeout: 60
   connection_timeout: 10
   initial_connection_attempts: 10
-  home_assistant:
-    discovery: true
-    name: "Transmit AIS position"
-    guid: switch.boat_ais_transmission6ad32245
-    entity_id: boat_ais_transmission
-    discovery_prefix: homeassistant
+home_assistant:
+  discovery: true
+  discovery_prefix: "homeassistant"
+  device_unique_id: "33564eb9"
+  device_name: "BoatPi MQTT Helper"
+  device_topic_prefix: "boatpi/devices"
 logging:
   # filename: logfile.txt
   level: Info
+relay_control:
+  - name: "Transmit AIS position"
+    serial_port: 
+      port: /dev/tty.usbserial-10
+      baud: 9600
+    guid: switch.boat_ais_transmission6ad32245
+    entity_id: boat_ais_transmission
+    icon: "mdi:broadcast"
+signalk:
+  system_id: "368327460"
+  mqtt_mapping:
+    - type: "zigbee-temperature"
+      source_topic: "zigbee2mqtt/TempSensorEngineRoom"
+      dest_topic: "vessels/self/environment/inside/engineRoom"
+    - type: "zigbee-temperature"
+      source_topic: "zigbee2mqtt/Cabin Temperature"
+      dest_topic: "vessels/self/environment/inside/mainCabin"
+    - type: "zigbee-temperature"
+      source_topic: "zigbee2mqtt/TempSensorCockpit"
+      dest_topic: "vessels/self/environment/inside/cockpit"
