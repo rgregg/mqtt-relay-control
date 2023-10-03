@@ -43,7 +43,7 @@ public abstract class ManagedMqttClient
     public delegate void TopicChangedEventHandler(object sender, MqttTopicUpdateEventArgs args);
     public event TopicChangedEventHandler? TopicChanged;
 
-    protected virtual async Task ProcessMessagePayloadAsync(MqttApplicationMessage message)
+    protected virtual Task ProcessMessagePayloadAsync(MqttApplicationMessage message)
     {
         try
         {
@@ -53,6 +53,7 @@ public abstract class ManagedMqttClient
         {
             Logger.WriteLine(Logger.LogLevel.Warn, $"Unable to process topic update: {ex.Message}");
         }
+        return Task.CompletedTask;
     }
 
     protected virtual Task PostConnectionEstablishedAsync(bool firstConnect)
