@@ -40,14 +40,6 @@ public static class Program {
 
         // launch the MQTT interface
         HomeAssistantMqttClient client = new HomeAssistantMqttClient(new Logger(logger, "MQTT: "), config.Mqtt, config.HomeAssistant, appCancelTokenSource.Token);
-        // client.UpdateDeviceState += (sender, device) => {
-        //     // Get the current state of this device and return it
-        //     SerialPortSwitch? switcher = device.Device as SerialPortSwitch;
-        //     if (switcher != null)
-        //     {
-        //         switcher.RunCommand(device.State ?? "");
-        //     }
-        // };
         
         // Register any configured HA devices
         var mqttPrefix = config.HomeAssistant?.DeviceTopicPrefix ?? "devices/relaycontrol";
