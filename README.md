@@ -1,11 +1,12 @@
 # BoatPi Signal-K / MQTT Device Controller
 
 A small daemon service designed for managing devices in a marine environment. This service
-was designed to work with automation platforms like Home Assistant, Zigbee2MQTT, and Signal-K.
+was designed to work with automation platforms like [Home Assistant](https://www.home-assistant.io/),
+[Zigbee2MQTT](https://www.zigbee2mqtt.io/), and [Signal-K](https://signalk.org/).
 
 The app serves two primary purposes:
 
-1. Enabling remote control of serial relay controllers from Home Assistant or via MQTT.
+1. Enabling remote control of serial relay controllers from Home Assistant or via [MQTT](https://mqtt.org/).
 2. Mapping data from Zigbee2MQTT into Signal-K so the data can be available to other devices.
 
 ## Relay Control
@@ -21,8 +22,13 @@ Which is connected to a Raspberry Pi where the service is running.
 A second use for this project is mapping between MQTT topics published by Zigbee2MQTT and
 Signal-K to make data available for other onboard devices. In this case I have a series of
 Zigbee temperature monitors that I wanted to make available on my boat network. The service
-seamlessly listens for updates from Zigbee2MQTT and republishes the data in the correct
+seamlessly listens for updates from [Zigbee2MQTT](http://www.zigbee2mqtt.io/) and republishes the data in the correct
 format for Signal-K to pick up via [signalk-mqtt-bridge](https://www.npmjs.com/package/signalk-mqtt-bridge).
+
+## Prereqs
+
+You need to have an MQTT server installed and running. [Eclipse Mosquitto](https://www.mosquitto.org/) is a light-weight
+and open source MQTT server that's easy to setup and run on a Raspberry Pi.
 
 
 ## Configuration
