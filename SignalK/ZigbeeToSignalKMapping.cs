@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
 
@@ -24,9 +23,10 @@ public class ZigbeeToSignalKMapping
             throw new InvalidOperationException("SingalK SystemID cannot be null.");
 
         SystemId = config.SystemId;
-        var query = from m in config.Mappings where m.Source == SOURCE_ZIGBEE
+        var query = from m in config.Mappings
+                    where m.Source == SOURCE_ZIGBEE
                     select m;
-        foreach(var m in query)
+        foreach (var m in query)
         {
             IZigbeeMapping instance;
             if (m.Format == TemperatureMapping.FORMAT_TEMP)
@@ -44,7 +44,8 @@ public class ZigbeeToSignalKMapping
 
     public async Task SubscribeToTopicsAsync()
     {
-         MqttClient.TopicChanged += async (o, args) => {
+        MqttClient.TopicChanged += async (o, args) =>
+        {
             IZigbeeMapping? instance;
             if (TopicMapping.TryGetValue(args.Topic, out instance))
             {
@@ -57,7 +58,7 @@ public class ZigbeeToSignalKMapping
             }
         };
 
-        foreach(var topic in TopicMapping.Keys)
+        foreach (var topic in TopicMapping.Keys)
         {
             await MqttClient.SubscribeTopicAsync(topic);
         }
@@ -90,9 +91,9 @@ public class TemperatureMapping : IZigbeeMapping
         this.SystemId = systemId;
     }
 
-    public string SourceTopic {get; private set;}
-    public string DestinationTopicPrefix {get; private set;}
-    
+    public string SourceTopic { get; private set; }
+    public string DestinationTopicPrefix { get; private set; }
+
 
     public async Task ConvertDataAsync(string sourceData, ManagedMqttClient client, Logger logger)
     {
@@ -140,7 +141,7 @@ public class TemperatureMapping : IZigbeeMapping
 
     private async Task PublishData(ManagedMqttClient client, string topicPrefix, string dataName, string? value)
     {
-        if (null == value) 
+        if (null == value)
         {
             throw new ArgumentNullException("value");
         }
@@ -154,32 +155,32 @@ public class TemperatureMapping : IZigbeeMapping
         /// Temperature in degrees celsius
         /// </summary>
         [JsonPropertyName("temperature")]
-        public float? Temperature {get;set;}
+        public float? Temperature { get; set; }
         /// <summary>
         /// Relatively humidity, in %
         /// </summary>
         [JsonPropertyName("humidity")]
-        public float? Humidity {get;set;}
+        public float? Humidity { get; set; }
         /// <summary>
         /// Pressure measured in hPa
         /// </summary>
         [JsonPropertyName("pressure")]
-        public float? Pressure {get;set;}
+        public float? Pressure { get; set; }
         /// <summary>
         /// Battery power remaining, measured in percent
         /// </summary>
         [JsonPropertyName("battery")]
-        public float? Battery {get;set;}
+        public float? Battery { get; set; }
         /// <summary>
         /// Battery voltage in millivolts
         /// </summary>
         [JsonPropertyName("voltage")]
-        public int? Voltage {get;set;}
+        public int? Voltage { get; set; }
         /// <summary>
         /// Wireless link quality in lqi
         /// </summary>
         [JsonPropertyName("linkquality")]
-        public int? LinkQuality {get;set;}
+        public int? LinkQuality { get; set; }
     }
 }
 
