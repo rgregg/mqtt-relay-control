@@ -1,5 +1,5 @@
 mqtt:
-  host: hestia.lan
+  host: boatpi.lan
   port: 1883
   keep_alive_seconds: 30
   reconnect_timeout: 60

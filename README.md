@@ -34,3 +34,28 @@ listing the available serial connections and allowing the relay to be controlled
 ```bash
 dotnet run -- -c config.yml
 ```
+
+
+## Docker Container
+
+You can also run this as a docker container:
+
+```bash
+docker run --env RELAY_CONFIG_PATH=/App/config.yml --volume ./config.yml:/App/config.yml:ro --volume /dev/tty.usbserial-10:/dev/tty.usbserial-10 --detach mqtt-relay-control 
+```
+
+You can also use Docker Compose:
+
+```yaml
+version: '3'
+services:
+  mqtt-relay-control:
+    container_name: mqtt-relay-control
+    image: mqtt-relay-control
+    env:
+      - RELAY_CONFIG_PATH=/App/config.yml
+    volumes:
+      - ./config.yml:/App/config.yml:ro
+      - /dev/tty.usbserial-10:/dev/tty.usbserial-10
+    restart: unless-stopped
+```

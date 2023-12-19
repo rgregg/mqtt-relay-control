@@ -10,7 +10,7 @@ Type=exec
 Restart=always
 RestartSec=10
 User=ryan
-ExecStart=/home/ryan/mqtt-relay-control/serial-relay-control config.yml
+ExecStart=/home/ryan/mqtt-relay-control/mqtt-relay-control config.yml
 
 [Install]
 WantedBy=multi-user.target

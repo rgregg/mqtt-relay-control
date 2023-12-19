@@ -1,6 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using System.IO.Ports;
 using System.Runtime.CompilerServices;
+using System.Runtime;
 using YamlDotNet;
 
 public static class Program {
@@ -100,9 +101,17 @@ public static class Program {
 
     static Configuration? ParseArguments(string[] args)
     {
+        string configFile = "";
         if (args.Length == 1)
         {
-            var configFile = args[0];
+            configFile = args[0];
+        }
+        else
+        {
+            configFile = Environment.GetEnvironmentVariable("RELAY_CONFIG_PATH") ?? "";
+        }
+        if (configFile.Length > 0)
+        {
             logger.WriteLine(Logger.LogLevel.Info, $"Using configuration file: {configFile}");
             try 
             {
